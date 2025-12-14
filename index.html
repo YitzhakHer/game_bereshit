@@ -54,12 +54,12 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            touch-action: none; /* קריטי לנייד - מונע גלילה בעת החלקה על הלוח */
         }
         
         /* התאמה למסכים קטנים (טלפונים ניידים) */
         @media (max-width: 500px) {
             #game-board {
-                /* שימוש בגודל יחסי */
                 width: 90vw;
                 height: 90vw;
                 max-width: 400px;
@@ -106,11 +106,11 @@
 
 
         /* ==================== */
-        /* CSS: הוראות המשחק */
+        /* CSS: הוראות המשחק (קצרות) */
         /* ==================== */
         #instructions {
             width: 400px;
-            max-width: 90vw; /* התאמה לגודל הלוח בנייד */
+            max-width: 90vw; 
             margin: 20px auto;
             text-align: center; 
             border-top: 1px solid #bbada0;
@@ -118,7 +118,7 @@
             color: #5d4037;
             line-height: 1.6;
             font-size: 1.1em;
-            font-weight: normal; 
+            font-weight: bold; 
         }
         
         #instructions p {
@@ -137,13 +137,7 @@
 
     <div id="instructions">
         <p>
-            השתמשו במקשי החיצים **או בהחלקה על המסך** כדי להזיז את כל הבלוקים על הלוח.
-        </p>
-        <p>
-            כאשר שני בלוקים עם אותה פרשה נפגשים, הם מתאחדים והופכים לפרשה הבאה לפי סדר החומש.
-        </p>
-        <p>
-            המטרה: להגיע לבלוק של הפרשה האחרונה בחומש: ויחי.
+            עליכם להזיז את הבלוקים של הפרשות (במקלדת או בהחלקה) ולהגיע לבלוק של הפרשה האחרונה בחומש: ויחי.
         </p>
     </div>
 
@@ -203,8 +197,8 @@
             document.addEventListener('keyup', handleKeyPress);
             // הוספת מאזיני אירועים למחוות מגע
             const gameBoard = document.getElementById('game-board');
-            gameBoard.addEventListener('touchstart', handleTouchStart);
-            gameBoard.addEventListener('touchend', handleTouchEnd);
+            gameBoard.addEventListener('touchstart', handleTouchStart, {passive: false});
+            gameBoard.addEventListener('touchend', handleTouchEnd, {passive: false});
         }
 
         function drawBoard(newTiles = [], mergedTiles = []) {
@@ -453,6 +447,7 @@
         function handleTouchStart(e) {
             touchstartX = e.changedTouches[0].screenX;
             touchstartY = e.changedTouches[0].screenY;
+            e.preventDefault(); // מונע גלילה בדפדפן הנייד
         }
 
         function handleTouchEnd(e) {
