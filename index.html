@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>פרשיות בראשית 🎲 - משחק 2048</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        /* ==================== */
+        /* CSS: עיצוב כללי והתאמה */
+        /* ==================== */
+
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #fcebb6; 
+            color: #333;
+            margin: 0;
+            padding: 20px 0;
+            direction: rtl; 
+            overflow-x: hidden; 
+            -webkit-tap-highlight-color: transparent; /* מונע סימון בעת לחיצה בנייד */
+        }
+
+        h1 {
+            color: #7b3f00; 
+            margin-bottom: 10px;
+        }
+
+        #score-container {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #5d4037;
+        }
+
+        /* ==================== */
+        /* לוח המשחק (Grid) */
+        /* ==================== */
+
+        #game-board {
+            /* גודל בסיסי לשולחן עבודה */
+            width: 400px;
+            height: 400px;
+            background-color: #bbada0; 
+            border: 6px solid #bbada0;
+            border-radius: 6px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* התאמה למסכים קטנים (טלפונים ניידים) */
+        @media (max-width: 500px) {
+            #game-board {
+                /* שימוש בגודל יחסי */
+                width: 90vw;
+                height: 90vw;
+                max-width: 400px;
+                max-height: 400px;
+                margin-top: 5px;
+            }
+        }
+
+
+        .tile {
+            width: 100%;
+            height: 100%;
+            background-color: #cdc1b4; 
+            border-radius: 3px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #776e65;
+            transition: all 0.1s ease-in-out; 
+            position: relative;
+        }
+
+        .tile:not(.empty) {
+            color: white; 
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            cursor: default;
+        }
+
+        /* אפקטי אנימציה */
+        .tile-merged { animation: pop 0.15s; }
+        @keyframes pop {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1.0); }
+        }
+        .tile-new { animation: fadeIn 0.1s ease-in; opacity: 0; animation-fill-mode: forwards; }
+        @keyframes fadeIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+
+        /* ==================== */
+        /* CSS: הוראות המשחק */
+        /* ==================== */
+        #instructions {
+            width: 400px;
+            max-width: 90vw; /* התאמה לגודל הלוח בנייד */
+            margin: 20px auto;
+            text-align: center; 
+            border-top: 1px solid #bbada0;
+            padding-top: 15px;
+            color: #5d4037;
+            line-height: 1.6;
+            font-size: 1.1em;
+            font-weight: normal; 
+        }
+        
+        #instructions p {
+            margin: 5px 0;
+        }
+        
+    </style>
+</head>
+<body>
+    <h1>פרשיות בראשית 🎲</h1>
+    <div id="score-container">
+        ניקוד: <span id="score">0</span>
+    </div>
+    <div id="game-board">
+        </div>
+
+    <div id="instructions">
+        <p>
+            השתמשו במקשי החיצים **או בהחלקה על המסך** כדי להזיז את כל הבלוקים על הלוח.
+        </p>
+        <p>
+            כאשר שני בלוקים עם אותה פרשה נפגשים, הם מתאחדים והופכים לפרשה הבאה לפי סדר החומש.
+        </p>
+        <p>
+            המטרה: להגיע לבלוק של הפרשה האחרונה בחומש: ויחי.
+        </p>
+    </div>
+
+    <script>
+        /* ========================= */
+        /* JAVASCRIPT: לוגיקת המשחק */
+        /* ========================= */
+
+        const PARASHOT = [
+            { name: "בראשית", score: 2, color: "#eee4da" },
+            { name: "נח", score: 4, color: "#ede0c8" },
+            { name: "לך לך", score: 8, color: "#f2b179" },
+            { name: "וירא", score: 16, color: "#f59563" },
+            { name: "חיי שרה", score: 32, color: "#f67c5f" },
+            { name: "תולדות", score: 64, color: "#f65e3e" },
+            { name: "ויצא", score: 128, color: "#edcf72" },
+            { name: "וישלח", score: 256, color: "#edcc61" },
+            { name: "וישב", score: 512, color: "#edc850" },
+            { name: "מקץ", score: 1024, color: "#edc53f" },
+            { name: "ויגש", score: 2048, color: "#edc22e" },
+            { name: "ויחי", score: 4096, color: "#3c3a32" } 
+        ];
+
+        const BOARD_SIZE = 4;
+        let board = [];
+        let score = 0;
+        let gameIsOver = false;
+        let isMoving = false; 
+
+        // משתנים למעקב אחרי מחוות החלקה (Touch)
+        let touchstartX = 0;
+        let touchstartY = 0;
+        const SWIPE_THRESHOLD = 50; 
+
+
+        // ************************
+        // 1. פונקציות עזר וציור
+        // ************************
+
+        function getParashaIndex(score) {
+            return PARASHOT.findIndex(p => p.score === score);
+        }
+
+        function getParashaByScore(score) {
+            return PARASHOT.find(p => p.score === score);
+        }
+
+        function setupGame() {
+            board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+            score = 0;
+            gameIsOver = false;
+            updateScore();
+            drawBoard();
+            addRandomTile();
+            addRandomTile();
+            
+            document.addEventListener('keyup', handleKeyPress);
+            // הוספת מאזיני אירועים למחוות מגע
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.addEventListener('touchstart', handleTouchStart);
+            gameBoard.addEventListener('touchend', handleTouchEnd);
+        }
+
+        function drawBoard(newTiles = [], mergedTiles = []) {
+            const boardElement = document.getElementById('game-board');
+            boardElement.innerHTML = '';
+            
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const tileElement = document.createElement('div');
+                    tileElement.classList.add('tile');
+                    
+                    const currentScore = board[r][c];
+                    const parasha = getParashaByScore(currentScore);
+
+                    if (parasha) {
+                        tileElement.textContent = parasha.name;
+                        tileElement.classList.add(`tile-${parasha.name.replace(/\s/g, '-')}`);
+                        tileElement.style.backgroundColor = parasha.color;
+                        
+                        if (mergedTiles.some(pos => pos.r === r && pos.c === c)) {
+                             tileElement.classList.add('tile-merged');
+                        }
+                        
+                        if (newTiles.some(pos => pos.r === r && pos.c === c)) {
+                            tileElement.classList.add('tile-new');
+                        }
+
+                        let fontSize = '20px';
+                        if (parasha.name.length >= 8) fontSize = '14px';
+                        else if (parasha.name.length >= 6) fontSize = '16px';
+                        
+                        tileElement.style.fontSize = fontSize;
+                        
+                        if (parasha.name === "בראשית") {
+                             tileElement.style.color = "#776e65";
+                        } else {
+                            tileElement.style.color = "white";
+                        }
+
+                    } else {
+                        tileElement.classList.add('empty');
+                    }
+                    boardElement.appendChild(tileElement);
+                }
+            }
+        }
+
+        function updateScore(points = 0) {
+            score += points;
+            document.getElementById('score').textContent = score;
+        }
+
+        function getEmptyCells() {
+            const emptyCells = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === null) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+            return emptyCells;
+        }
+
+        function addRandomTile() {
+            const emptyCells = getEmptyCells();
+            if (emptyCells.length === 0) return { r: -1, c: -1 };
+
+            const randomIndex = Math.floor(Math.random() * emptyCells.length);
+            const { r, c } = emptyCells[randomIndex];
+            board[r][c] = 2; 
+            return { r, c };
+        }
+
+        // ************************
+        // 2. לוגיקת תנועה ואיחוד
+        // ************************
+
+        function filterNull(row) {
+            return row.filter(val => val !== null);
+        }
+
+        function operate(row) {
+            let mergedPositions = [];
+            row = filterNull(row); 
+            
+            for (let i = 0; i < row.length - 1; i++) {
+                if (row[i] !== null && row[i] === row[i + 1]) {
+                    const currentIndex = getParashaIndex(row[i]);
+                    
+                    if (currentIndex < PARASHOT.length - 1) {
+                         const nextParashaScore = PARASHOT[currentIndex + 1].score;
+                        
+                        row[i] = nextParashaScore; 
+                        updateScore(nextParashaScore);
+                        row[i + 1] = null; 
+                        
+                        mergedPositions.push(i);
+                    }
+                }
+            }
+            
+            row = filterNull(row); 
+            
+            while (row.length < BOARD_SIZE) {
+                row.push(null);
+            }
+            return { row, mergedPositions };
+        }
+
+        function moveLeft() {
+            let changed = false;
+            let allMerged = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                const originalRow = [...board[r]];
+                const { row, mergedPositions } = operate(board[r]);
+                board[r] = row;
+                
+                allMerged.push(...mergedPositions.map(c => ({ r: r, c: c })));
+
+                if (originalRow.some((val, i) => val !== board[r][i])) {
+                    changed = true;
+                }
+            }
+            return { changed, allMerged };
+        }
+
+        function moveRight() {
+            let changed = false;
+            let allMerged = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                let row = [...board[r]].reverse(); 
+                const { row: operatedRow, mergedPositions } = operate(row);
+                
+                if (operatedRow.some((val, i) => val !== row[i])) {
+                    changed = true;
+                }
+
+                board[r] = operatedRow.reverse(); 
+                allMerged.push(...mergedPositions.map(c => ({ r: r, c: (BOARD_SIZE - 1) - c })));
+            }
+            return { changed, allMerged };
+        }
+        
+        function moveVertical(isUp) {
+            let changed = false;
+            let allMerged = [];
+
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let col = [];
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    col.push(board[r][c]);
+                }
+                
+                if (!isUp) {
+                    col.reverse();
+                }
+                
+                const originalCol = [...col];
+                const { row: operatedCol, mergedPositions } = operate(col); 
+                
+                if (originalCol.some((val, i) => val !== operatedCol[i])) {
+                    changed = true;
+                }
+                
+                if (!isUp) {
+                    operatedCol.reverse();
+                    allMerged.push(...mergedPositions.map(r => ({ r: (BOARD_SIZE - 1) - r, c: c })));
+                } else {
+                    allMerged.push(...mergedPositions.map(r => ({ r: r, c: c })));
+                }
+
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    board[r][c] = operatedCol[r];
+                }
+            }
+            return { changed, allMerged };
+        }
+
+        function moveUp() { return moveVertical(true); }
+        function moveDown() { return moveVertical(false); }
+
+
+        // ************************
+        // 3. בקרת המשחק ואירועי קלט
+        // ************************
+
+        // פונקציה המפעילה מהלך על סמך כיוון
+        function performMove(direction) {
+             if (gameIsOver || isMoving) return;
+            
+            isMoving = true;
+
+            let result = { changed: false, allMerged: [] };
+            
+            // המיפוי של הכיוונים בלוח RTL
+            switch (direction) {
+                case 'LEFT': 
+                    result = moveRight(); 
+                    break;
+                case 'RIGHT': 
+                    result = moveLeft(); 
+                    break;
+                case 'UP': 
+                    result = moveUp();
+                    break;
+                case 'DOWN': 
+                    result = moveDown();
+                    break;
+                default: 
+                    isMoving = false;
+                    return; 
+            }
+
+            if (result.changed) {
+                // 1. ציור ראשוני: הצגת הבלוקים החדשים שנוצרו (עם אפקט הקפיצה)
+                drawBoard([], result.allMerged); 
+                
+                // 2. לאחר אנימציה קצרה: מוסיף בלוק חדש ומציג את אפקט ההופעה
+                setTimeout(() => {
+                    const newTilePos = addRandomTile();
+                    drawBoard([newTilePos]); 
+                    isMoving = false; 
+                    checkGameOver();
+                }, 150); 
+            } else {
+                isMoving = false;
+            }
+        }
+        
+        // --- אירועי מקלדת ---
+        function handleKeyPress(e) {
+            let direction = null;
+            switch (e.key) {
+                case 'ArrowLeft': direction = 'LEFT'; break;
+                case 'ArrowRight': direction = 'RIGHT'; break;
+                case 'ArrowUp': direction = 'UP'; break;
+                case 'ArrowDown': direction = 'DOWN'; break;
+            }
+            if (direction) {
+                performMove(direction);
+            }
+        }
+
+        // --- אירועי מגע (נייד) ---
+        function handleTouchStart(e) {
+            touchstartX = e.changedTouches[0].screenX;
+            touchstartY = e.changedTouches[0].screenY;
+        }
+
+        function handleTouchEnd(e) {
+            const touchendX = e.changedTouches[0].screenX;
+            const touchendY = e.changedTouches[0].screenY;
+
+            const dx = touchendX - touchstartX;
+            const dy = touchendY - touchstartY;
+
+            // בדיקה אם ההחלקה עברה את סף הרגישות
+            if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // החלקה אופקית
+                    const direction = dx > 0 ? 'RIGHT' : 'LEFT';
+                    performMove(direction);
+                } else {
+                    // החלקה אנכית
+                    const direction = dy > 0 ? 'DOWN' : 'UP';
+                    performMove(direction);
+                }
+            }
+            e.preventDefault(); // מונע גלילה בדפדפן הנייד
+        }
+        
+        // --- בדיקת סיום משחק ---
+        function canMove() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE - 1; c++) {
+                    if (board[r][c] !== null && board[r][c] === board[r][c + 1]) return true;
+                }
+            }
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                for (let r = 0; r < BOARD_SIZE - 1; r++) {
+                    if (board[r][c] !== null && board[r][c] === board[r + 1][c]) return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkGameOver() {
+            const lastParashaScore = PARASHOT[PARASHOT.length - 1].score;
+            
+            if (board.flat().includes(lastParashaScore)) {
+                gameIsOver = true;
+                setTimeout(() => alert("🎉 מזל טוב! הגעת לפרשת ויחי! ניצחת את המשחק!"), 100);
+                document.removeEventListener('keyup', handleKeyPress);
+                return;
+            }
+            
+            if (getEmptyCells().length === 0) {
+                if (!canMove()) {
+                    gameIsOver = true;
+                    setTimeout(() => alert("🛑 אין יותר מהלכים אפשריים. המשחק נגמר!"), 100);
+                    document.removeEventListener('keyup', handleKeyPress);
+                }
+            }
+        }
+
+        window.onload = setupGame;
+    </script>
+</body>
+</html>
